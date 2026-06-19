@@ -9,7 +9,10 @@ use cosmic::{
     cosmic_theme, executor,
     iced::{
         self, Alignment, Border, Length, Limits, Size, Subscription,
-        core::text::{Ellipsize, EllipsizeHeightLimit, Shaping},
+        core::{
+            text::{Ellipsize, EllipsizeHeightLimit, Shaping},
+            window,
+        },
     },
     surface, theme,
     widget::{
@@ -977,7 +980,10 @@ impl Application for App {
             process_sort: (ProcessCategory::default(), false),
         };
 
-        let command = Task::batch([app.update_config(), app.set_window_title(fl!("app-name"))]);
+        let command = Task::batch([
+            app.update_config(),
+            app.set_window_title(fl!("app-name"), window::Id::RESERVED),
+        ]);
         (app, command)
     }
 
