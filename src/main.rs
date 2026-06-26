@@ -10,6 +10,7 @@ use cosmic::{
     iced::{
         self, Alignment, Border, Length, Limits, Size, Subscription,
         core::text::{Ellipsize, EllipsizeHeightLimit, Shaping},
+        widget::scrollable::{Direction, Scrollbar},
     },
     surface, theme,
     widget::{
@@ -1324,24 +1325,60 @@ impl Application for App {
                     )
                     .push(widget::space().height(space_m));
 
-                //TODO: table is too slow, this uses list to emulate table
-                let categories = match nav_page {
-                    NavPage::Applications => ProcessCategory::for_applications(self.process_sort.0),
-                    _ => ProcessCategory::for_processes(self.process_sort.0),
+                let responsive = widget::responsive(move |size| {
+                    //TODO: table is too slow, this uses list to emulate table
+                    let categories = match nav_page {
+                        NavPage::Applications => {
+                            ProcessCategory::for_applications(self.process_sort.0)
+                        }
+                        _ => ProcessCategory::for_processes(self.process_sort.0),
+                    };
+                    let (width, direction) = if size.width < 1000.0 {
+                        (
+                            Length::Fixed(1000.0),
+                            Direction::Both {
+                                vertical: Scrollbar::new(),
+                                horizontal: Scrollbar::new(),
+                            },
+                        )
+                    } else {
+                        (Length::Fill, Direction::Vertical(Scrollbar::new()))
+                    };
+                    widget::scrollable(
+                        widget::column!(
+                            table_header(
+                                &categories,
+                                self.process_sort.0,
+                                self.process_sort.1,
+                                true
+                            ),
+                            iced::widget::List::new(&self.process_content, move |_i, item| {
+                                widget::column::with_capacity(2)
+                                    .push(widget::divider::horizontal::default())
+                                    .push(table_row(item, &categories, &self.process_selected))
+                                    .into()
+                            },)
+                        )
+                        .padding([0, space_xl, space_s, space_xl])
+                        .width(width),
+                    )
+                    .auto_scroll(true)
+                    .direction(direction)
+                    .into()
+                });
+
+                // Custom view for horizontal scrolling
+                let content = widget::mouse_area(
+                    widget::column!(page_header, responsive,)
+                        .width(Length::Fill)
+                        .height(Length::Fill),
+                )
+                .on_press(Message::ProcessSelect(None));
+                return if let Some(id) = self.nav_model.active_data::<widget::Id>() {
+                    widget::id_container(content, id.clone()).into()
+                } else {
+                    content.into()
                 };
-                page_header = page_header.push(table_header(
-                    &categories,
-                    self.process_sort.0,
-                    self.process_sort.1,
-                    true,
-                ));
-                iced::widget::List::new(&self.process_content, move |_i, item| {
-                    widget::column::with_capacity(2)
-                        .push(widget::divider::horizontal::default())
-                        .push(table_row(item, &categories, &self.process_selected))
-                        .into()
-                })
-                .into()
             }
             (NavPage::Cpu, Some(graph_item)) => {
                 let mut column = widget::column::with_capacity(2)
